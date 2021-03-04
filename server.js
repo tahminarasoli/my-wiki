@@ -48,8 +48,8 @@ app.use('/', express.static(path.join(__dirname, 'client', 'build')));
 app.get('/api/page/:slug', async (req, res) => {
   const filename = slugToPath(req.params.slug);
   try {
-    const body = await readFile(filename, 'utf-8');
-    res.json({ status: 'ok', body });
+    const getfile = await readFile(filename, 'utf-8');
+    res.json({ status: 'ok', body: getfile });
     // return jsonOK(res, { body });
   } catch (e) {
     res.json({ status: 'error', message: 'Page does not exist.' });
@@ -66,8 +66,12 @@ app.get('/api/page/:slug', async (req, res) => {
 app.post('/api/page/:slug', async (req, res) => {
   const filename = slugToPath(req.params.slug);
   try {
+    const Newfile = req.body.body;
+    await writeFile(filename, Newfile);
+    res.json({status: 'ok'});
 
   } catch (e) {
+    res.json({status: 'error', message: 'could not write page.'});
 
   }
 });
@@ -79,7 +83,8 @@ app.post('/api/page/:slug', async (req, res) => {
 //  success response: {status:'ok', pages: ['fileName', 'otherFileName']}
 //  failure response: no failure response
 app.get('/api/pages/all', async (req, res) => {
-
+  const files = await readDir(DATA_DIR), fileName = files.map(c => path.parse(c).name);
+  res.json({ status: 'ok', pages: fileName })
 });
 
 
@@ -90,17 +95,38 @@ app.get('/api/pages/all', async (req, res) => {
 //  success response: {status:'ok', tags: ['tagName', 'otherTagName']}
 //  failure response: no failure response
 app.get('/api/tags/all', async (req, res) => {
-
+  let findTags = await readDir(DATA_DIR); 
+  findTags = findTags.map(a => path.join(DATA_DIR, a)); 
+  const tag = new Set, 
+  e = findTags.map(async a => { 
+      const tagName = await readFile(a, "utf-8"), 
+      findTags = tagName.match(TAG_RE); 
+      findTags && findTags.forEach(a => tag.add(a.substring(1)))
+   });
+    await Promise.all(e), res.json({ 
+        status: "ok", 
+        tags: Array.from(tag) 
+      })
 });
-
-
 // GET: '/api/tags/:tag'
 // searches through the contents of each file looking for the :tag
 // it will send an array of all file names that contain this tag (without .md!)
 //  success response: {status:'ok', tag: 'tagName', pages: ['tagName', 'otherTagName']}
 //  failure response: no failure response
 app.get('/api/tags/:tag', async (req, res) => {
-
+  const tagName = req.params.tag; 
+  let findTags = await readDir(DATA_DIR); 
+  findTags = findTags.map(a => path.join(DATA_DIR, a)); 
+  const e = findTags.map(async a => { 
+      const getTag = await readFile(a, "utf-8"), 
+      findTags = getTag.match(TAG_RE); 
+      if (findTags && findTags.includes(`#${tagName}`)) 
+      return path.parse(a).name }), 
+      f = await Promise.all(e), 
+      getName = f.filter(a => a); 
+      res.json({ 
+          status: "ok", tag: tagName, pages: getName
+          }) 
 });
 
 
